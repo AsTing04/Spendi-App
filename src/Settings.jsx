@@ -49,24 +49,26 @@ export default function Settings({ session, onProfileUpdate }) {
   };
 
   const handleDeleteAccount = async () => {
-    const confirmation = window.confirm(
-      '⚠️ WARNING: Are you sure you want to delete your account? All your transaction data will be permanently deleted.'
-    );
+  const confirmation = window.confirm(
+    '⚠️ WARNING: Are you sure you want to delete your account? All your transaction data will be permanently deleted.'
+  );
 
-    if (!confirmation) return;
+  if (!confirmation) return;
 
-    setLoading(true);
-    const { error: dataError } = await supabase.from('expenses').delete().eq('user_id', session.user.id);
-    if (dataError) {
-      alert(`Error clearing user data: ${dataError.message}`);
-      setLoading(false);
-      return;
-    }
+  setLoading(true);
 
+  // Call the secure PostgreSQL function
+  const { error } = await supabase.rpc('delete_user_account');
+
+  if (error) {
+    alert(`Failed to delete account: ${error.message}`);
+    setLoading(false);
+  } else {
+    // Clear local authentication state
     await supabase.auth.signOut();
-    alert('Account data cleared and logged out.');
-  };
-
+    alert('Your account and all associated data have been permanently deleted.');
+  }
+};
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       {/* Update Profile Name */}
