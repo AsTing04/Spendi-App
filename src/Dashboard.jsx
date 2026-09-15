@@ -168,7 +168,7 @@ export default function Dashboard({ session }) {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="w-full px-4 py-2 border rounded-xl text-sm dark:bg-slate-900 dark:text-white dark:border-slate-700"
-            placeholder="e.g. Pastil, Jeepney fare"
+            placeholder=" "
             required
             />
         </div>
