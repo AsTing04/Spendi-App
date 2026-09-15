@@ -2,6 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { PlusCircle, Trash2, ArrowUpRight, ArrowDownRight, Wallet, Calendar } from 'lucide-react';
 
+// --------------------------------------------------------------------------
+// HELPER FUNCTION: Currency Formatter with Commas (e.g., ₱1,000,000.00)
+// Placed outside the component so it doesn't re-create on every render.
+// --------------------------------------------------------------------------
+const formatCurrency = (amount) => {
+  return new Intl.NumberFormat('en-PH', {
+    style: 'currency',
+    currency: 'PHP',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+};
+
 export default function Dashboard({ session }) {
   const [expenses, setExpenses] = useState([]);
   const [title, setTitle] = useState('');
@@ -34,6 +47,8 @@ export default function Dashboard({ session }) {
     }
 
     setLoading(true);
+
+    // Relies on database DEFAULT auth.uid() for user_id assignment
     const { error } = await supabase.from('expenses').insert([
       { title, amount: parsedAmount, category, type }
     ]);
@@ -94,14 +109,17 @@ export default function Dashboard({ session }) {
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
+      {/* Summary Cards with Comma Formatted Values */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
           <div className="flex items-center justify-between text-slate-500 mb-2">
             <span className="text-xs font-semibold uppercase">Total Balance</span>
             <Wallet className="w-5 h-5 text-indigo-500" />
           </div>
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-white">₱{netBalance.toFixed(2)}</h2>
+          {/* Formatted Total Balance */}
+          <h2 className="text-2xl font-bold text-slate-800 dark:text-white">
+            {formatCurrency(netBalance)}
+          </h2>
         </div>
 
         <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
@@ -109,7 +127,10 @@ export default function Dashboard({ session }) {
             <span className="text-xs font-semibold uppercase">Total Income</span>
             <ArrowUpRight className="w-5 h-5" />
           </div>
-          <h2 className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">₱{totalIncome.toFixed(2)}</h2>
+          {/* Formatted Total Income */}
+          <h2 className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+            {formatCurrency(totalIncome)}
+          </h2>
         </div>
 
         <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
@@ -117,11 +138,14 @@ export default function Dashboard({ session }) {
             <span className="text-xs font-semibold uppercase">Total Expenses</span>
             <ArrowDownRight className="w-5 h-5" />
           </div>
-          <h2 className="text-2xl font-bold text-red-600 dark:text-red-400">₱{totalExpenses.toFixed(2)}</h2>
+          {/* Formatted Total Expenses */}
+          <h2 className="text-2xl font-bold text-red-600 dark:text-red-400">
+            {formatCurrency(totalExpenses)}
+          </h2>
         </div>
       </div>
 
-      {/* Form */}
+      {/* Input Form */}
       <form onSubmit={handleAddExpense} className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm grid grid-cols-1 sm:grid-cols-5 gap-4 items-end">
         <div className="sm:col-span-2">
           <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Title</label>
@@ -170,7 +194,7 @@ export default function Dashboard({ session }) {
         </button>
       </form>
 
-      {/* Grouped Table Header Controls */}
+      {/* Grouped Table Controls */}
       <div className="flex items-center justify-between pt-2">
         <h3 className="text-lg font-bold text-slate-800 dark:text-white">Transaction Breakdown</h3>
         <div className="flex items-center gap-1 bg-slate-200 dark:bg-slate-800 p-1 rounded-xl">
@@ -201,7 +225,7 @@ export default function Dashboard({ session }) {
         </div>
       </div>
 
-      {/* Grouped Tables */}
+      {/* Grouped Tables Display */}
       <div className="space-y-6">
         {Object.keys(groupedExpenses).length === 0 ? (
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 text-center text-xs text-slate-400 border border-slate-200 dark:border-slate-700">
@@ -214,15 +238,16 @@ export default function Dashboard({ session }) {
 
             return (
               <div key={groupTitle} className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-                {/* Section Header */}
+                {/* Section Group Header */}
                 <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-indigo-500" />
                     <h4 className="text-sm font-bold text-slate-800 dark:text-white">{groupTitle}</h4>
                   </div>
+                  {/* Formatted Group Totals */}
                   <div className="flex items-center gap-4 text-xs font-semibold">
-                    <span className="text-emerald-600 dark:text-emerald-400">+₱{groupIncome.toFixed(2)}</span>
-                    <span className="text-red-600 dark:text-red-400">-₱{groupExpense.toFixed(2)}</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">+{formatCurrency(groupIncome)}</span>
+                    <span className="text-red-600 dark:text-red-400">-{formatCurrency(groupExpense)}</span>
                   </div>
                 </div>
 
@@ -235,8 +260,9 @@ export default function Dashboard({ session }) {
                         <span className="text-xs text-slate-400 capitalize">{item.category} • {new Date(item.created_at).toLocaleDateString()}</span>
                       </div>
                       <div className="flex items-center gap-4">
+                        {/* Formatted Item Amount */}
                         <span className={`text-sm font-bold ${item.type === 'income' ? 'text-emerald-500' : 'text-slate-700 dark:text-slate-200'}`}>
-                          {item.type === 'income' ? '+' : '-'}₱{Number(item.amount).toFixed(2)}
+                          {item.type === 'income' ? '+' : '-'}{formatCurrency(Number(item.amount))}
                         </span>
                         <button onClick={() => handleDeleteExpense(item.id)} className="text-slate-400 hover:text-red-500 transition">
                           <Trash2 className="w-4 h-4" />
