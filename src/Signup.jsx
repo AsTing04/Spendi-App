@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { supabase } from './supabaseClient';
-import { UserPlus, Eye, EyeOff } from 'lucide-react'; // 👈 Added Eye, EyeOff imports
+import { UserPlus, Eye, EyeOff } from 'lucide-react';
 
 export default function Signup({ onSwitchToLogin }) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false); // 👈 Added Visibility State
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -41,9 +41,7 @@ export default function Signup({ onSwitchToLogin }) {
     <div className="min-h-screen flex items-center justify-center bg-emerald-950/20 dark:bg-slate-950 p-4">
       <div className="w-full max-w-md bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-2xl border border-emerald-500/20">
         <div className="flex items-center gap-3 justify-center mb-6">
-          <div className="p-3 bg-emerald-500/10 text-emerald-500 rounded-2xl">
-            <UserPlus className="w-6 h-6" />
-          </div>
+          <img src="/logo.png" alt="Spendi Logo" className="w-10 h-10 object-contain" />
           <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Join Spendi</h2>
         </div>
 
@@ -58,13 +56,13 @@ export default function Signup({ onSwitchToLogin }) {
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               className="w-full px-4 py-2 border rounded-xl text-sm dark:bg-slate-800 dark:text-white dark:border-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none"
-              placeholder="Batman"
+              placeholder="John Doe"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Email</label>
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Email Address</label>
             <input
               type="email"
               value={email}
@@ -83,12 +81,12 @@ export default function Signup({ onSwitchToLogin }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-2 pr-10 border rounded-xl text-sm dark:bg-slate-800 dark:text-white dark:border-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none"
-                placeholder="Minimum 8 characters"
-                minLength={8}
+                placeholder="Minimum 6 characters"
+                minLength={6}
                 required
               />
               <button
-                type="button" // 👈 Crucial! Prevents form submission
+                type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
               >
@@ -105,6 +103,11 @@ export default function Signup({ onSwitchToLogin }) {
             {loading ? 'Registering...' : 'Create Account'}
           </button>
         </form>
+
+        {/* Email Terms & Data Privacy Consent Disclaimer */}
+        <p className="mt-4 text-[11px] text-slate-500 dark:text-slate-400 text-center leading-relaxed">
+          By creating an account, you consent to Spendi collecting your email address strictly for authentication, password recovery, and securing your personal financial records.
+        </p>
 
         <p className="mt-6 text-center text-xs text-slate-500 dark:text-slate-400">
           Already registered?{' '}
