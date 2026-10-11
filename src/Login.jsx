@@ -83,6 +83,10 @@ export default function Login({ onSwitchToSignup }) {
           <button onClick={onSwitchToSignup} className="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline">
             Create Account
           </button>
+          </p>
+          {/* In src/Login.jsx - Right above the "Don't have an account?" link */}
+          <p className="mt-4 text-[10px] text-slate-400 text-center">
+          Your email is used solely to authenticate your account securely.
         </p>
       </div>
     </div>
