@@ -7,12 +7,20 @@ export default function Signup({ onSwitchToLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false); // 👈 Track checkbox agreement state
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSignup = async (e) => {
     e.preventDefault();
+
+    // Secondary guard check
+    if (!agreedToTerms) {
+      setError('You must agree to the Terms and Privacy Policy to create an account.');
+      return;
+    }
+
     setLoading(true);
     setError('');
     setMessage('');
@@ -29,11 +37,12 @@ export default function Signup({ onSwitchToLogin }) {
       setError(error.message);
     } else {
       setMessage('Account created successfully! Check your email to verify.');
+      setFullName('');
+      setEmail('');
+      setPassword('');
+      setAgreedToTerms(false);
     }
 
-    setFullName('');
-    setEmail('');
-    setPassword('');
     setLoading(false);
   };
 
@@ -50,7 +59,9 @@ export default function Signup({ onSwitchToLogin }) {
 
         <form onSubmit={handleSignup} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Full Name / Display Name</label>
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+              Full Name / Display Name
+            </label>
             <input
               type="text"
               value={fullName}
@@ -62,7 +73,9 @@ export default function Signup({ onSwitchToLogin }) {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Email Address</label>
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+              Email Address
+            </label>
             <input
               type="email"
               value={email}
@@ -74,7 +87,9 @@ export default function Signup({ onSwitchToLogin }) {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Password</label>
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+              Password
+            </label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
@@ -95,19 +110,36 @@ export default function Signup({ onSwitchToLogin }) {
             </div>
           </div>
 
+          {/* Terms & Privacy Policy Checkbox */}
+          <div className="flex items-start gap-2 pt-2">
+            <input
+              type="checkbox"
+              id="terms"
+              checked={agreedToTerms}
+              onChange={(e) => setAgreedToTerms(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 dark:border-slate-700 dark:bg-slate-800"
+            />
+            <label htmlFor="terms" className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight cursor-pointer">
+              I agree to the collection of my email address for authentication and securing my records, and accept the{' '}
+              <a href="/privacy.html" target="_blank" className="text-emerald-600 dark:text-emerald-400 font-semibold underline">
+                Privacy Policy
+              </a>.
+            </label>
+          </div>
+
+          {/* Submit Button (Disabled unless agreedToTerms is true) */}
           <button
             type="submit"
-            disabled={loading}
-            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition shadow-lg shadow-emerald-600/20"
+            disabled={loading || !agreedToTerms}
+            className={`w-full py-2.5 text-white text-sm font-semibold rounded-xl transition shadow-lg ${
+              loading || !agreedToTerms
+                ? 'bg-slate-300 dark:bg-slate-700 cursor-not-allowed shadow-none'
+                : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20'
+            }`}
           >
             {loading ? 'Registering...' : 'Create Account'}
           </button>
         </form>
-
-        {/* Email Terms & Data Privacy Consent Disclaimer */}
-        <p className="mt-4 text-[11px] text-slate-500 dark:text-slate-400 text-center leading-relaxed">
-          By creating an account, you consent to Spendi collecting your email address strictly for authentication, password recovery, and securing your personal financial records.
-        </p>
 
         <p className="mt-6 text-center text-xs text-slate-500 dark:text-slate-400">
           Already registered?{' '}
