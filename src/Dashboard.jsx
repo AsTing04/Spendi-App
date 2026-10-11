@@ -2,10 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { PlusCircle, Trash2, ArrowUpRight, ArrowDownRight, Wallet, Calendar } from 'lucide-react';
 
-// --------------------------------------------------------------------------
-// HELPER FUNCTION: Currency Formatter with Commas (e.g., ₱1,000,000.00)
-// Placed outside the component so it doesn't re-create on every render.
-// --------------------------------------------------------------------------
 const formatCurrency = (amount) => {
   return new Intl.NumberFormat('en-PH', {
     style: 'currency',
@@ -16,31 +12,20 @@ const formatCurrency = (amount) => {
 };
 
 export default function Dashboard({ session }) {
-  const expenseCategories = ['Food', 'Transpo', 'Bills', 'Others'];
-  const incomeCategories = ['Salary', 'Allowance', 'Interest'];
   const [expenses, setExpenses] = useState([]);
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState(expenseCategories[0]);
+  const [category, setCategory] = useState('Food');
   const [type, setType] = useState('expense');
-  const [groupBy, setGroupBy] = useState('month'); // 'month' | 'week' | 'all'
+  const [groupBy, setGroupBy] = useState('daily'); // Default to 'daily'
   const [loading, setLoading] = useState(false);
+
+  const expenseCategories = ['Food', 'Transpo', 'Bills', 'Others'];
+  const incomeCategories = ['Salary', 'Allowance', 'Interest'];
 
   useEffect(() => {
     fetchExpenses();
   }, []);
-
-  const handleTypeChange = (e) => {
-  const newType = e.target.value;
-  setType(newType);
-  
-  // Set default category based on selected type
-  if (newType === 'expense') {
-    setCategory(expenseCategories[0]);
-  } else {
-    setCategory(incomeCategories[0]);
-  }
-};
 
   const fetchExpenses = async () => {
     const { data, error } = await supabase
@@ -49,6 +34,12 @@ export default function Dashboard({ session }) {
       .order('created_at', { ascending: false });
 
     if (!error && data) setExpenses(data);
+  };
+
+  const handleTypeChange = (e) => {
+    const newType = e.target.value;
+    setType(newType);
+    setCategory(newType === 'expense' ? expenseCategories[0] : incomeCategories[0]);
   };
 
   const handleAddExpense = async (e) => {
@@ -61,8 +52,6 @@ export default function Dashboard({ session }) {
     }
 
     setLoading(true);
-
-    // Relies on database DEFAULT auth.uid() for user_id assignment
     const { error } = await supabase.from('expenses').insert([
       { title, amount: parsedAmount, category, type }
     ]);
@@ -82,13 +71,22 @@ export default function Dashboard({ session }) {
     if (!error) fetchExpenses();
   };
 
-  // Helper: Get Month Header (e.g., "September 2026")
+  // Date Formatting Helpers
+  const getDayGroupKey = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
   const getMonthGroupKey = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleString('default', { month: 'long', year: 'numeric' });
   };
 
-  // Helper: Get Week Header (e.g., "Week of Sep 14, 2026")
   const getWeekGroupKey = (dateString) => {
     const date = new Date(dateString);
     const day = date.getDay();
@@ -102,7 +100,11 @@ export default function Dashboard({ session }) {
     if (groupBy === 'all') return { 'All Transactions': expenses };
 
     return expenses.reduce((groups, item) => {
-      const key = groupBy === 'month' ? getMonthGroupKey(item.created_at) : getWeekGroupKey(item.created_at);
+      let key;
+      if (groupBy === 'daily') key = getDayGroupKey(item.created_at);
+      else if (groupBy === 'week') key = getWeekGroupKey(item.created_at);
+      else key = getMonthGroupKey(item.created_at);
+
       if (!groups[key]) groups[key] = [];
       groups[key].push(item);
       return groups;
@@ -111,29 +113,46 @@ export default function Dashboard({ session }) {
 
   const groupedExpenses = groupTransactions();
 
-  const totalIncome = expenses
-    .filter((item) => item.type === 'income')
-    .reduce((acc, item) => acc + Number(item.amount), 0);
-
-  const totalExpenses = expenses
-    .filter((item) => item.type === 'expense')
-    .reduce((acc, item) => acc + Number(item.amount), 0);
-
+  // Overall Totals
+  const totalIncome = expenses.filter((i) => i.type === 'income').reduce((acc, i) => acc + Number(i.amount), 0);
+  const totalExpenses = expenses.filter((i) => i.type === 'expense').reduce((acc, i) => acc + Number(i.amount), 0);
   const netBalance = totalIncome - totalExpenses;
+
+  // Today's Specific Totals
+  const todayStr = new Date().toDateString();
+  const todaysItems = expenses.filter((i) => new Date(i.created_at).toDateString() === todayStr);
+  const todaysIncome = todaysItems.filter((i) => i.type === 'income').reduce((acc, i) => acc + Number(i.amount), 0);
+  const todaysExpenses = todaysItems.filter((i) => i.type === 'expense').reduce((acc, i) => acc + Number(i.amount), 0);
+  const todaysBalance = todaysIncome - todaysExpenses;
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards with Comma Formatted Values */}
+      {/* Today's Daily Summary Bar */}
+      <div className="bg-indigo-900 text-white p-4 rounded-2xl shadow-sm flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <span className="text-xs uppercase tracking-wider text-indigo-200 font-semibold">Today's Remaining Balance</span>
+          <h3 className="text-xl font-bold">{formatCurrency(todaysBalance)}</h3>
+        </div>
+        <div className="flex gap-4 text-xs">
+          <div>
+            <span className="text-emerald-300 block">Today's Earnings</span>
+            <strong className="text-sm">+{formatCurrency(todaysIncome)}</strong>
+          </div>
+          <div>
+            <span className="text-red-300 block">Today's Expenses</span>
+            <strong className="text-sm">-{formatCurrency(todaysExpenses)}</strong>
+          </div>
+        </div>
+      </div>
+
+      {/* Overall Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
           <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-semibold uppercase">Total Balance</span>
+            <span className="text-xs font-semibold uppercase">Total Net Balance</span>
             <Wallet className="w-5 h-5 text-indigo-500" />
           </div>
-          {/* Formatted Total Balance */}
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-white">
-            {formatCurrency(netBalance)}
-          </h2>
+          <h2 className="text-2xl font-bold text-slate-800 dark:text-white">{formatCurrency(netBalance)}</h2>
         </div>
 
         <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
@@ -141,10 +160,7 @@ export default function Dashboard({ session }) {
             <span className="text-xs font-semibold uppercase">Total Income</span>
             <ArrowUpRight className="w-5 h-5" />
           </div>
-          {/* Formatted Total Income */}
-          <h2 className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-            {formatCurrency(totalIncome)}
-          </h2>
+          <h2 className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(totalIncome)}</h2>
         </div>
 
         <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
@@ -152,30 +168,27 @@ export default function Dashboard({ session }) {
             <span className="text-xs font-semibold uppercase">Total Expenses</span>
             <ArrowDownRight className="w-5 h-5" />
           </div>
-          {/* Formatted Total Expenses */}
-          <h2 className="text-2xl font-bold text-red-600 dark:text-red-400">
-            {formatCurrency(totalExpenses)}
-          </h2>
+          <h2 className="text-2xl font-bold text-red-600 dark:text-red-400">{formatCurrency(totalExpenses)}</h2>
         </div>
       </div>
 
-     {/* Add Record Form */}
-        <form onSubmit={handleAddExpense} className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm grid grid-cols-1 sm:grid-cols-6 gap-4 items-end">
+      {/* Input Form */}
+      <form onSubmit={handleAddExpense} className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm grid grid-cols-1 sm:grid-cols-6 gap-4 items-end">
         <div className="sm:col-span-2">
-            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Title</label>
-            <input
+          <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Title</label>
+          <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="w-full px-4 py-2 border rounded-xl text-sm dark:bg-slate-900 dark:text-white dark:border-slate-700"
-            placeholder=" "
+            placeholder="e.g. Lunch, Baon"
             required
-            />
+          />
         </div>
 
         <div>
-            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Amount (₱)</label>
-            <input
+          <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Amount (₱)</label>
+          <input
             type="number"
             step="0.01"
             min="0.01"
@@ -184,57 +197,54 @@ export default function Dashboard({ session }) {
             className="w-full px-4 py-2 border rounded-xl text-sm dark:bg-slate-900 dark:text-white dark:border-slate-700"
             placeholder="0.00"
             required
-            />
+          />
         </div>
 
         <div>
-            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Type</label>
-            <select
+          <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Type</label>
+          <select
             value={type}
             onChange={handleTypeChange}
             className="w-full px-4 py-2 border rounded-xl text-sm dark:bg-slate-900 dark:text-white dark:border-slate-700"
-            >
+          >
             <option value="expense">Expense</option>
             <option value="income">Income</option>
-            </select>
+          </select>
         </div>
 
-        {/* Dynamic Category Dropdown */}
         <div>
-            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Category</label>
-            <select
+          <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Category</label>
+          <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             className="w-full px-4 py-2 border rounded-xl text-sm dark:bg-slate-900 dark:text-white dark:border-slate-700"
-            >
+          >
             {(type === 'expense' ? expenseCategories : incomeCategories).map((cat) => (
-                <option key={cat} value={cat}>
-                {cat}
-                </option>
+              <option key={cat} value={cat}>{cat}</option>
             ))}
-            </select>
+          </select>
         </div>
 
         <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl flex items-center justify-center gap-2"
+          type="submit"
+          disabled={loading}
+          className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl flex items-center justify-center gap-2"
         >
-            <PlusCircle className="w-4 h-4" /> Add Record
+          <PlusCircle className="w-4 h-4" /> Add
         </button>
-</form>
+      </form>
 
-      {/* Grouped Table Controls */}
+      {/* Group Controls */}
       <div className="flex items-center justify-between pt-2">
-        <h3 className="text-lg font-bold text-slate-800 dark:text-white">Transaction Breakdown</h3>
+        <h3 className="text-lg font-bold text-slate-800 dark:text-white">Transaction History</h3>
         <div className="flex items-center gap-1 bg-slate-200 dark:bg-slate-800 p-1 rounded-xl">
           <button
-            onClick={() => setGroupBy('month')}
+            onClick={() => setGroupBy('daily')}
             className={`px-3 py-1 text-xs font-semibold rounded-lg transition ${
-              groupBy === 'month' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-500'
+              groupBy === 'daily' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-500'
             }`}
           >
-            Monthly
+            Daily
           </button>
           <button
             onClick={() => setGroupBy('week')}
@@ -243,6 +253,14 @@ export default function Dashboard({ session }) {
             }`}
           >
             Weekly
+          </button>
+          <button
+            onClick={() => setGroupBy('month')}
+            className={`px-3 py-1 text-xs font-semibold rounded-lg transition ${
+              groupBy === 'month' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-500'
+            }`}
+          >
+            Monthly
           </button>
           <button
             onClick={() => setGroupBy('all')}
@@ -255,7 +273,7 @@ export default function Dashboard({ session }) {
         </div>
       </div>
 
-      {/* Grouped Tables Display */}
+      {/* Grouped Table */}
       <div className="space-y-6">
         {Object.keys(groupedExpenses).length === 0 ? (
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 text-center text-xs text-slate-400 border border-slate-200 dark:border-slate-700">
@@ -263,34 +281,34 @@ export default function Dashboard({ session }) {
           </div>
         ) : (
           Object.entries(groupedExpenses).map(([groupTitle, items]) => {
-            const groupIncome = items.filter(i => i.type === 'income').reduce((sum, i) => sum + Number(i.amount), 0);
-            const groupExpense = items.filter(i => i.type === 'expense').reduce((sum, i) => sum + Number(i.amount), 0);
+            const groupIncome = items.filter((i) => i.type === 'income').reduce((sum, i) => sum + Number(i.amount), 0);
+            const groupExpense = items.filter((i) => i.type === 'expense').reduce((sum, i) => sum + Number(i.amount), 0);
+            const groupBalance = groupIncome - groupExpense;
 
             return (
               <div key={groupTitle} className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-                {/* Section Group Header */}
                 <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-indigo-500" />
                     <h4 className="text-sm font-bold text-slate-800 dark:text-white">{groupTitle}</h4>
                   </div>
-                  {/* Formatted Group Totals */}
                   <div className="flex items-center gap-4 text-xs font-semibold">
                     <span className="text-emerald-600 dark:text-emerald-400">+{formatCurrency(groupIncome)}</span>
                     <span className="text-red-600 dark:text-red-400">-{formatCurrency(groupExpense)}</span>
+                    <span className="text-slate-600 dark:text-slate-300 border-l pl-3 border-slate-300 dark:border-slate-600">
+                      Bal: {formatCurrency(groupBalance)}
+                    </span>
                   </div>
                 </div>
 
-                {/* Items List */}
                 <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
                   {items.map((item) => (
                     <div key={item.id} className="p-4 px-6 flex items-center justify-between hover:bg-slate-50/50 dark:hover:bg-slate-700/20 transition">
                       <div>
                         <h5 className="text-sm font-semibold text-slate-800 dark:text-white">{item.title}</h5>
-                        <span className="text-xs text-slate-400 capitalize">{item.category} • {new Date(item.created_at).toLocaleDateString()}</span>
+                        <span className="text-xs text-slate-400 capitalize">{item.category}</span>
                       </div>
                       <div className="flex items-center gap-4">
-                        {/* Formatted Item Amount */}
                         <span className={`text-sm font-bold ${item.type === 'income' ? 'text-emerald-500' : 'text-slate-700 dark:text-slate-200'}`}>
                           {item.type === 'income' ? '+' : '-'}{formatCurrency(Number(item.amount))}
                         </span>
